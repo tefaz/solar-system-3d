@@ -1,0 +1,43 @@
+Planet texture maps by Solar System Scope / INOVE.
+Source: https://www.solarsystemscope.com/textures/
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+https://creativecommons.org/licenses/by/4.0/
+
+The maps are NASA-derived reconstructions using elevation and imagery data,
+with colors adjusted using spacecraft observations. Earth uses NASA's Blue
+Marble imagery. Some mapping gaps are reconstructed, and colors are enhanced.
+Gas and ice giant textures depict cloud tops rather than a solid surface.
+
+Downloaded maps: Mercury, Venus atmosphere, Earth day map and clouds, Mars,
+Jupiter, Saturn and its ring alpha map, Uranus, Neptune, Moon, and Sun.
+The Sun map is animated and color-treated by Orrery. Planet maps are unmodified.
+Saturn's ring map is remapped onto radial UV coordinates.
+
+Archived original sky (not used by the viewer): NASA Deep Star Maps (2012), starmap_8k.jpg, celestial coordinates.
+Credit: NASA/Goddard Space Flight Center Scientific Visualization Studio.
+Source: https://svs.gsfc.nasa.gov/3895/
+Asset: https://svs.gsfc.nasa.gov/vis/a000000/a003800/a003895/starmap_8k.jpg
+Unmodified catalog-based map; display intensity reduced in the viewer.
+Sky orientation is illustrative, not calibrated to a date or observing site.
+
+Archived dramatic sky (not used by the viewer): cosmic-panorama.png, custom AI-generated artwork created with
+the built-in imagegen tool for Orrery. Full prompt: SKY-PROMPT.md.
+Crisp foreground stars are procedurally rendered in the application.
+This is an artistic environment, not a scientific sky map.
+
+Archived natural sky (not used by the viewer): natural-sky.png, custom AI-generated photographic-style night sky,
+created with the built-in imagegen tool for Orrery.
+Full prompt: NATURAL-SKY-PROMPT.md.
+The faint Milky Way and star positions are illustrative, not catalogued.
+
+Current sky: pure black with three procedural star layers rendered by Orrery.
+Star positions and depth are artistic and illustrative, not catalogued.
+No sky image is loaded by the viewer.
+
+Pluto: NASA New Horizons global color mosaic (2017), resized to 2048 x 1024.
+Credit: NASA/JHUAPL/SwRI.
+Source: https://science.nasa.gov/resource/pluto-global-color-map/
+Asset: https://assets.science.nasa.gov/dynamicimage/assets/science/psd/solar/2023/09/p/l/pluto_color_mapmosaic.jpg
+The original map has gaps in southern-hemisphere coverage. Black gap pixels
+are rendered as plain neutral gray; no surface details are invented for them.
+Resolution varies across the mosaic. Map colors are those of the source mosaic.
