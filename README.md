@@ -34,9 +34,9 @@ Each world’s information card shows its name and classification. The details b
 
 | Input | Action |
 | --- | --- |
-| Click or tap a world or marker | Open its close-up view. |
-| Left-drag or one-finger drag | Orbit the camera. |
-| Right-drag | Pan the camera. |
+| Left-click or tap a world or marker | Open its close-up view. |
+| Right-drag or one-finger drag | Orbit the camera. |
+| Middle-drag | Pan the camera. |
 | Scroll | Zoom toward the point under the cursor; zoom outward from a world to return to the overview. |
 | Pinch | Zoom toward the midpoint between two fingers. |
 | **Solar system** button or `Home` | Return to the overview. |
@@ -49,27 +49,27 @@ The settings button in the top right provides **Orbital paths**, **Planet names*
 
 Worlds use locally stored surface or cloud-top textures. Earth has a separate cloud layer, Saturn has textured rings, and Pluto uses a New Horizons color mosaic with unmapped southern regions displayed in plain gray.
 
-The Sun has an animated red-orange plasma surface, a narrow red halo, and red and yellow-orange corona ribbons. Ribbons fade and reappear independently with changing shapes and positions. The corona is hidden in the Sun’s interior view.
+The Sun has an animated gold-orange photosphere with granular plasma detail and limb shading, a white-gold glowing edge, a turbulent amber corona, soft streamers that emerge, expand, and fade at changing locations, and flowing arched prominences with independent lifetimes. A broad optical halo fades smoothly into space. The corona follows the projected limb when zooming and is hidden in the Sun’s interior view. These effects use procedural shaders and instanced ribbons without full-screen postprocessing.
 
 The sky has a black background and three procedural star layers with silver, pale-blue, and ivory stars. The layers respond to camera navigation and subtle pointer movement. Pointer-driven star motion respects the reduced-motion preference. The viewer does not load a sky background image.
 
 ### Interiors
 
-The Sun, every planet, Pluto, and the Moon provide **Surface** and **Interior** views. Interior mode removes one hemisphere and reveals a textured cut face. Drag to inspect it from different angles; select a layer to highlight it and read its description. Each interior includes model notes and a source link.
+The Sun, every planet, Pluto, and the Moon provide **Surface** and **Interior** views. Interior mode removes one hemisphere and reveals a radius-scaled cut face with distinct rock, metal, ice, fluid, and plasma patterns. Right-drag or swipe to inspect it; click a visible region or use the numbered layer list to highlight it and read its physical state, evidence, and extent. One matching callout identifies the selected region. Hatching marks possible regions and soft edges mark gradual transitions. Colors and motion are illustrative, not measured temperature or flow. Each interior includes model notes and scientific source links.
 
 | World | Interior layers, from outside inward |
 | --- | --- |
 | Sun | Convection zone, radiative zone, fusion core |
-| Mercury | Crust, silicate mantle, metallic outer core, solid inner core |
+| Mercury | Crust, silicate mantle, metallic outer core, possible solid inner core |
 | Venus | Crust, rocky mantle, iron-rich core |
 | Earth | Crust, mantle, liquid outer core, solid inner core |
-| Mars | Crust, rocky mantle, liquid outer core, possible inner core |
+| Mars | Compare inner-core and basal-melt interpretations: crust, mantle, liquid metallic core, and either a possible inner core or possible basal silicate melt layer |
 | Jupiter | Molecular hydrogen, metallic hydrogen, dilute core |
 | Saturn | Molecular hydrogen, metallic hydrogen, diffuse heavy-element core |
-| Uranus | Hydrogen and helium envelope, water-rich fluid interior, possible rocky core |
-| Neptune | Hydrogen and helium envelope, water-rich fluid interior, possible rocky core |
+| Uranus | Hydrogen and helium envelope, hot mixed interior, possible rock-rich center |
+| Neptune | Hydrogen and helium envelope, hot mixed interior, possible rock-rich center |
 | Pluto | Water-ice shell, possible subsurface ocean, rocky core |
-| Moon | Crust, mantle, liquid outer core, solid inner core |
+| Moon | Crust, mantle, possible partial-melt zone, liquid outer core, solid inner core |
 
 The asteroid belt has no interior view.
 
@@ -135,7 +135,7 @@ Overview body sizes are enlarged, orbital spacing uses a square-root distance ma
 
 The major planets have simplified circular orbital paths. Pluto’s path includes approximately 17.2° inclination and 0.249 eccentricity, with radial compression applied to its orbit. Its modeled distance spans about 29.7–49.3 AU, with its closest approach slightly inside Neptune’s orbit. Orbital phases and orientations do not represent a current ephemeris.
 
-Interior boundaries are approximate. The models include thin rocky crusts, separate liquid and solid cores where modeled, plasma zones in the Sun, gradual transitions in the gas giants, and hot fluid interiors in the ice giants. Venus’s core state is uncertain; Mars’s possible inner core follows a 2025 InSight analysis. Pluto’s possible ocean is hypothetical. Layer colors and textures are illustrative.
+Interior boundaries are approximate and their evidence varies by body. Earth’s major seismic regions are well constrained; Venus’s core state and the ice giants’ deep composition remain unresolved. Mars offers separate inner-core and basal-melt interpretations, whose compatibility remains unsettled in a 2026 review. Mercury’s inner core, the Moon’s basal partial-melt zone, and Pluto’s ocean are marked as possible. Gas-giant cores use gradual heavy-element gradients. See the [body-by-body scientific review and diagram choices](docs/interior-science.md), checked against NASA, USGS, and research literature on 3 October 2026.
 
 Magnetic fields are schematic diagrams with compressed extents. Their colors, brightness, particle motion, tilts, and geometry are not measured field maps or quantitative representations. Star positions are also illustrative.
 
@@ -156,6 +156,8 @@ Start the development server in a separate terminal before running any of the br
 | Command | Coverage |
 | --- | --- |
 | `npm test` | Overview, fixed positions, cursor-directed zoom, close-up transitions, camera restoration, rotation, interiors, magnetic fields, Moon and asteroid belt navigation, settings, and mobile layouts. |
+| `node tests/interiors.mjs` | All interior models, rendered five-layer Moon, material animation, layer picking, Mars interpretations, selected callouts, and mobile layout. |
+| `node tests/sun.mjs` | Rendered corona brightness and color falloff, streamer emergence and fading at different angles, animation, zoom/orbit alignment, interior visibility, and mobile rendering. |
 | `node tests/pluto.mjs` | Pluto’s orbit geometry, surface texture, interior, mobile visibility, and overview return. |
 | `node tests/overview-return.mjs` | Camera restoration after scroll approaches, the rover demo, and mobile interior and field views. |
 | `node tests/mars-robots.mjs` | All seven mission markers and cards, coordinates, far-side selection, interior behavior, and mobile layout. |
@@ -178,7 +180,8 @@ Set `BASE_URL` to test a different server address. Screenshot-producing suites s
 | `src/Scene.jsx` | Solar system rendering, camera navigation, selection, and scene integration. |
 | `src/data.js` | Body descriptions and physical data. |
 | `src/orbits.js` | Orbital positions and overview distance mapping. |
-| `src/InteriorCutaway.js`, `src/interiors.js` | Cutaway rendering, layer models, and references. |
+| `src/InteriorCutaway.js`, `src/InteriorCallout.js`, `src/interiors.js` | Cutaway rendering, selected-layer labels, layer models, and references. |
+| `docs/interior-science.md` | Dated scientific review, sources, and diagram assumptions. |
 | `src/MagneticField.js`, `src/magneticFields.js` | Animated field rendering, models, and references. |
 | `src/SolarCorona.js`, `src/Starfield.js` | Solar corona and procedural sky. |
 | `src/MarsRobotMarkers.js`, `src/marsRobots.js` | Mars markers, mission data, image credits, and references. |

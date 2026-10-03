@@ -4,17 +4,19 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {AU, bodies, getBody} from './data';
 import {createStarfield} from './Starfield';
 import {createInteriorCutaway} from './InteriorCutaway';
+import {createInteriorCallout} from './InteriorCallout';
+import {getInterior} from './interiors';
 import {createSolarCorona} from './SolarCorona';
 import {createMagneticField} from './MagneticField';
 import {createMarsRobotMarkers} from './MarsRobotMarkers';
 import {getMarsRobot} from './marsRobots';
 import {OVERVIEW_DISTANCE,orbitRadius,orbitalPosition} from './orbits';
 
-export default function Scene({selected, onSelect, activeRobot, onSelectRobot, cutaway, activeLayer, magnetic, orbits, labels, resetToken, onError}) {
+export default function Scene({selected, onSelect, activeRobot, onSelectRobot, cutaway, activeLayer, onSelectLayer, interiorModel, magnetic, orbits, labels, resetToken, onError}) {
   const host=useRef(null), engine=useRef(null);
-  const state=useRef({selected,activeRobot,cutaway,activeLayer,magnetic,orbits,labels});
-  state.current={selected,activeRobot,cutaway,activeLayer,magnetic,orbits,labels};
-  const callbacks=useRef({onSelect,onSelectRobot,onError}); callbacks.current={onSelect,onSelectRobot,onError};
+  const state=useRef({selected,activeRobot,cutaway,activeLayer,interiorModel,magnetic,orbits,labels});
+  state.current={selected,activeRobot,cutaway,activeLayer,interiorModel,magnetic,orbits,labels};
+  const callbacks=useRef({onSelect,onSelectRobot,onSelectLayer,onError}); callbacks.current={onSelect,onSelectRobot,onSelectLayer,onError};
   useEffect(()=>{
     const container=host.current;
     let renderer;
@@ -30,6 +32,7 @@ export default function Scene({selected, onSelect, activeRobot, onSelectRobot, c
     const controls=new OrbitControls(camera,renderer.domElement);
     controls.enableDamping=true; controls.dampingFactor=.065; controls.enableZoom=false; controls.enablePan=true;
     controls.rotateSpeed=.5;
+    controls.mouseButtons={LEFT:null,MIDDLE:THREE.MOUSE.PAN,RIGHT:THREE.MOUSE.ROTATE};
     const starfield=createStarfield(renderer);
     let seed=731; const random=()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483646;};
     scene.add(new THREE.AmbientLight(0xb1c2d5, .7));
@@ -47,6 +50,8 @@ export default function Scene({selected, onSelect, activeRobot, onSelectRobot, c
     const sphere=new THREE.SphereGeometry(1,80,48);
     const clipping=new THREE.Plane(new THREE.Vector3(0,0,-1),1e20);
     const interior=createInteriorCutaway(); scene.add(interior.mesh);
+    const interiorCallout=createInteriorCallout(container);
+    const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
     const magneticField=createMagneticField();scene.add(magneticField.group);
     let cutawayBody=null,viewShift=0,fieldZoom=1;
     const solarNoise=`
@@ -69,9 +74,9 @@ export default function Scene({selected, onSelect, activeRobot, onSelectRobot, c
     const sunMat=new THREE.MeshBasicMaterial({map:tex('sun'),color:0xffffff,clippingPlanes:[clipping]});
     sunMat.onBeforeCompile=shader=>{
       shader.uniforms.uTime=solarTime;
-      shader.vertexShader='varying vec3 vSolarPosition;\n'+shader.vertexShader;
-      shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvSolarPosition=normalize(position);');
-      shader.fragmentShader='uniform float uTime;\nvarying vec3 vSolarPosition;\n'+solarNoise+shader.fragmentShader;
+      shader.vertexShader='varying vec3 vSolarPosition;\nvarying vec3 vSolarNormal;\nvarying vec3 vSolarView;\n'+shader.vertexShader;
+      shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvSolarPosition=normalize(position);\nvSolarNormal=normalize(normalMatrix*normal);\nvSolarView=normalize(-(modelViewMatrix*vec4(position,1.0)).xyz);');
+      shader.fragmentShader='uniform float uTime;\nvarying vec3 vSolarPosition;\nvarying vec3 vSolarNormal;\nvarying vec3 vSolarView;\n'+solarNoise+shader.fragmentShader;
       shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`#ifdef USE_MAP
         vec3 flow=vSolarPosition*7.0+vec3(uTime*.22,-uTime*.3,uTime*.16);
         vec3 warp=vec3(solarFbm(flow),solarFbm(flow+11.0),solarFbm(flow+23.0))-.5;
@@ -81,8 +86,16 @@ export default function Scene({selected, onSelect, activeRobot, onSelectRobot, c
         float grain=solarNoise(vSolarPosition*100.0+warp*6.0+vec3(uTime*.85));
         float brightness=dot(surface,vec3(.3,.6,.1));
         float hot=smoothstep(.23,.76,brightness*.35+cells*.65+grain*.22);
-        vec3 plasma=mix(vec3(.75,.010,.001),vec3(1.75,.16,.018),hot);
-        diffuseColor.rgb*=plasma*(.5+brightness*.35+cells*.5+grain*.2);
+        float granules=smoothstep(.28,.72,grain)*.28;
+        vec3 plasma=mix(vec3(.85,.065,.006),vec3(2.65,.72,.065),hot);
+        plasma+=vec3(1.4,.52,.075)*granules;
+        float facing=clamp(dot(normalize(vSolarNormal),normalize(vSolarView)),0.0,1.0);
+        float limb=pow(1.0-facing,3.0);
+        // Limb darkening preserves the spherical form; a narrow incandescent
+        // edge joins the photosphere to the corona without flattening texture.
+        plasma*=.68+.32*pow(facing,.35);
+        plasma+=vec3(2.2,.82,.13)*pow(limb,3.0);
+        diffuseColor.rgb*=plasma*(.65+brightness*.35+cells*.35);
         #endif`);
     };
     let corona;
@@ -117,6 +130,22 @@ export default function Scene({selected, onSelect, activeRobot, onSelectRobot, c
         orbitGroup.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(points),new THREE.LineBasicMaterial({color:body.id==='pluto'?0xa4937d:0x53666b,transparent:true,opacity:body.id==='pluto'?.38:.26})));
       }
     });
+    // Charon stays attached to Pluto through overview/focus scale transitions.
+    // Relative radii are physical; separation is compressed for this diagram.
+    const plutoGroup=meshes.get('pluto'),charonOrbit=new THREE.Group();
+    charonOrbit.rotation.x=.45;
+    plutoGroup.add(charonOrbit);
+    const charon=new THREE.Mesh(sphere,new THREE.MeshStandardMaterial({color:0xa8a5a2,roughness:1}));
+    charon.scale.setScalar(.606);charon.castShadow=true;charon.receiveShadow=true;
+    charonOrbit.add(charon);
+    const charonDistance=plutoGroup.userData.r*3;
+    const charonPoints=Array.from({length:192},(_,i)=>new THREE.Vector3(Math.cos(i/192*Math.PI*2)*charonDistance,0,Math.sin(i/192*Math.PI*2)*charonDistance));
+    const charonPath=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(charonPoints),new THREE.LineBasicMaterial({color:0xb6aca1,transparent:true,opacity:.35}));
+    charonOrbit.add(charonPath);
+    const charonLabel=document.createElement('span');
+    charonLabel.className='satellite-label';charonLabel.textContent='Charon';charonLabel.style.display='none';container.appendChild(charonLabel);
+    let charonAngle=.3;
+    const charonWorld=new THREE.Vector3();
     const robotMarkers=createMarsRobotMarkers(container,id=>callbacks.current.onSelectRobot(id));
     let turningToRobot=null,robotYaw=null;
     const beltGeo=new THREE.BufferGeometry(),beltPositions=[];
@@ -175,7 +204,7 @@ export default function Scene({selected, onSelect, activeRobot, onSelectRobot, c
       const r=body?.radius/1000;
       const fit=container.clientWidth<=800?Math.max(1,container.clientHeight/container.clientWidth*1.18):1;
       fieldZoom=id&&state.current.magnetic?1.55:1;
-      const distance=id==='belt'?AU*20*fit:id?r*(id==='saturn'?7.4:5.2)*fit*fieldZoom:OVERVIEW_DISTANCE*fit;
+      const distance=id==='belt'?AU*20*fit:id?r*(id==='saturn'?7.4:id==='pluto'?12:5.2)*fit*fieldZoom:OVERVIEW_DISTANCE*fit;
       controls.minDistance=id&&id!=='belt'?r*1.8:.001;
       controls.maxDistance=id&&id!=='belt'?r*30:AU*150*fit;
       const end=new THREE.Vector3(0,distance*.24,distance);
@@ -331,19 +360,36 @@ export default function Scene({selected, onSelect, activeRobot, onSelectRobot, c
           // Tilt the center cut relative to the entry camera so both the
           // textured hemisphere and the interior face are visible together.
           const cameraRight=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
-          viewNormal.copy(camera.position).normalize().addScaledVector(cameraRight,1.25).normalize();
+          viewNormal.copy(camera.position).sub(meshes.get(body.id).position).normalize().addScaledVector(cameraRight,.85).normalize();
           clipping.normal.copy(viewNormal).negate();clipping.constant=0;
           interior.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),viewNormal);
         }
         // The cap follows the globe's scale during arrival/return transitions.
         interior.mesh.scale.setScalar(r*meshes.get(body.id).scale.x);
         interior.mesh.position.copy(meshes.get(body.id).position);
-        interior.update(body,s.activeLayer);
+        interior.update(getInterior(body.id,s.interiorModel),s.activeLayer,reducedMotion.matches?0:now/1000);
       }else {clipping.constant=1e20;cutawayBody=null;}
+      interiorCallout.update(getInterior(s.selected,s.interiorModel),s.activeLayer,interior.mesh,camera,Number(markers.get(s.selected)?.dataset.screenRadius)||0,interior.mesh.visible&&!transition);
+      charonAngle+=dt*.16;
+      charon.position.set(Math.cos(charonAngle)*charonDistance,0,Math.sin(charonAngle)*charonDistance);
+      charon.rotation.y=-charonAngle;
+      charonOrbit.visible=s.selected==='pluto';
+      charonPath.visible=s.orbits;
+      charonLabel.style.display='none';
+      if(charonOrbit.visible&&!transition){
+        charon.getWorldPosition(charonWorld);projected.copy(charonWorld).project(camera);
+        const x=(projected.x+1)*container.clientWidth/2,y=(1-projected.y)*container.clientHeight/2;
+        charonLabel.dataset.screenX=x;charonLabel.dataset.screenY=y;
+        if(projected.z>-1&&projected.z<1&&x>=0&&x<=container.clientWidth&&y>=0&&y<=container.clientHeight){
+          charonLabel.style.display='block';charonLabel.style.left=`${x}px`;charonLabel.style.top=`${y}px`;
+        }
+      }
       robotMarkers.update(meshes.get('mars').userData.mesh,camera,s.selected==='mars'&&!s.cutaway&&!transition,s.activeRobot);
       magneticField.update(body,s.magnetic,now/1000,dt,body?meshes.get(body.id)?.scale.x||1:1);
       solarTime.value=now/1000;
       corona.quaternion.copy(camera.quaternion);
+      const sunGroup=meshes.get('sun');
+      corona.userData.update(camera.position.distanceTo(sunGroup.position)/(sunGroup.userData.r*sunGroup.scale.x));
       corona.visible=!(s.selected==='sun'&&s.cutaway>0);
       starfield.update(forward,position.copy(camera.position).add(origin),dt);
       renderer.autoClear=true;renderer.render(starfield.scene,starfield.camera);renderer.autoClear=false;renderer.clearDepth();renderer.render(scene,camera);
@@ -361,11 +407,20 @@ export default function Scene({selected, onSelect, activeRobot, onSelectRobot, c
       const rect=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);raycaster.setFromCamera(pointer,camera);
       const hits=raycaster.intersectObjects([...meshes.values()].filter(g=>g.visible),true);hovered=hits.length?hits[0].object.parent.userData.body?.id||null:null;
       if(!hovered&&belt.visible){raycaster.params.Points.threshold=AU*.04;if(raycaster.intersectObject(belt).length)hovered='belt';}
-      renderer.domElement.style.cursor=hovered?'pointer':'grab';
+      renderer.domElement.style.cursor=hovered||interior.pick(raycaster,camera)!==null?'pointer':'default';
     };
     let downPoint=null;
-    const down=e=>{zoomMarker=null;zoomCursor=null;approachPose=null;if(transition){downPoint=null;return;}downPoint=[e.clientX,e.clientY];};
-    const up=e=>{if(e.pointerType==='touch'&&touches.size>1){downPoint=null;return;}if(downPoint&&Math.hypot(e.clientX-downPoint[0],e.clientY-downPoint[1])<5&&hovered&&hovered!==state.current.selected)callbacks.current.onSelect(hovered);downPoint=null;};
+    const down=e=>{zoomMarker=null;zoomCursor=null;approachPose=null;if(transition||e.button!==0){downPoint=null;return;}downPoint=[e.clientX,e.clientY];};
+    const up=e=>{
+      if(e.button===0&&!(e.pointerType==='touch'&&touches.size>1)&&downPoint&&Math.hypot(e.clientX-downPoint[0],e.clientY-downPoint[1])<5){
+        const rect=renderer.domElement.getBoundingClientRect();
+        pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);raycaster.setFromCamera(pointer,camera);
+        const layer=interior.pick(raycaster,camera);
+        if(layer!==null)callbacks.current.onSelectLayer(layer);
+        else if(hovered&&hovered!==state.current.selected)callbacks.current.onSelect(hovered);
+      }
+      downPoint=null;
+    };
     const orbitPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
     const zoomAt=(clientX,clientY,factor,markerId=null)=>{
       // Finish automatic framing before accepting leftover scroll momentum.
@@ -426,7 +481,7 @@ export default function Scene({selected, onSelect, activeRobot, onSelectRobot, c
           const radius=group.userData.r*group.scale.x,center=group.position;
           const distance=camera.position.distanceTo(center),normalizedDistance=distance/radius;
           const fit=container.clientWidth<=800?Math.max(1,container.clientHeight/container.clientWidth*1.18):1;
-          const threshold=(group.userData.body.id==='saturn'?7.4:5.2)*fit*1.4;
+          const threshold=(group.userData.body.id==='saturn'?7.4:group.userData.body.id==='pluto'?12:5.2)*fit*1.4;
           const depth=center.clone().sub(camera.position).dot(raycaster.ray.direction);
           // Capture the visible globe plus a small halo, rather than requiring
           // the cursor to be near the core. The pixel margin adapts to distance.

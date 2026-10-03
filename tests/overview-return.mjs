@@ -22,7 +22,7 @@ try{
   await page.mouse.wheel(0,240);await page.waitForTimeout(85);
   for(let i=0;i<45&&!(await page.locator('.planet-card').count());i++){await page.mouse.wheel(0,-240);await page.waitForTimeout(85);}
   assert.equal(await page.locator('.planet-card h1').textContent(),'Earth');await page.waitForTimeout(1400);
-  await page.mouse.move(720,320);await page.mouse.down();await page.mouse.move(880,500,{steps:12});await page.mouse.up();await page.waitForTimeout(350);
+  await page.mouse.move(720,320);await page.mouse.down({button:'right'});await page.mouse.move(880,500,{steps:12});await page.mouse.up({button:'right'});await page.waitForTimeout(350);
   await scrollOut();await assertRestored(initial);
   console.log('✓ Natural cursor zoom returns to the overview before the approach');
   await page.getByRole('button',{name:'Explore Mars',exact:true}).click();await page.waitForTimeout(1400);

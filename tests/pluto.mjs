@@ -10,7 +10,7 @@ const projection=()=>page.locator('.scene-marker').evaluateAll(els=>els.map(e=>(
 const returnAndCheck=async before=>{
   await page.mouse.move(page.viewportSize().width/2,100);
   for(let i=0;i<16&&await page.locator('.planet-card').count();i++){await page.mouse.wheel(0,240);await page.waitForTimeout(100);}
-  await page.waitForTimeout(1500);assert.equal(await page.locator('.planet-card').count(),0);assert.equal(await page.locator('.scene-marker:visible').count(),12);
+  await page.waitForTimeout(1500);assert.equal(await page.locator('.planet-card').count(),0);assert.equal(await page.locator('.scene-marker:visible').count(),12);assert.equal(await page.locator('.satellite-label:visible').count(),0);
   const after=await projection();for(let i=0;i<before.length;i++)assert.ok(Math.hypot(after[i].x-before[i].x,after[i].y-before[i].y)<1,`${before[i].id} overview should be restored`);
 };
 try{
@@ -36,6 +36,10 @@ try{
   const before=await projection();await page.getByRole('button',{name:'Viewer settings'}).click();await page.getByLabel('Planet names',{exact:true}).check();await page.keyboard.press('Escape');
   await page.screenshot({path:'.test-artifacts/pluto-overview.png'});
   await page.getByRole('button',{name:'Explore Pluto',exact:true}).click();await page.waitForTimeout(1500);
+  const charon=page.locator('.satellite-label');await charon.waitFor({state:'visible'});
+  const charonPosition=()=>charon.evaluate(e=>({x:+e.dataset.screenX,y:+e.dataset.screenY}));
+  const start=await charonPosition();await page.waitForTimeout(1100);const end=await charonPosition();
+  assert.ok(Math.hypot(end.x-start.x,end.y-start.y)>2,'Charon should visibly move along its orbit');
   assert.equal(await page.locator('.planet-card h1').textContent(),'Pluto');assert.equal(await page.locator('.planet-kind').textContent(),'Dwarf planet');
   await page.getByRole('button',{name:'Planet details'}).click();assert.match(await page.locator('.planet-details').textContent(),/2,376 km.*39.48 AU/);assert.equal(await page.getByRole('switch',{name:'Magnetic field',exact:true}).count(),0);
   await page.screenshot({path:'.test-artifacts/pluto-closeup.png'});

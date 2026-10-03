@@ -72,7 +72,7 @@ try {
   const after=await projected('sun');assert.ok(Math.hypot(after.x-before.x,after.y-before.y)>20,'Off-center zoom must follow the cursor instead of the Sun');
   assert.equal(await page.locator('.planet-card').count(),0,'One distant zoom must not snap prematurely');
   // Change both zoom and orientation, then ensure a visit returns to that pose.
-  await page.mouse.move(1050,620);await page.mouse.down();await page.mouse.move(990,600,{steps:8});await page.mouse.up();await page.waitForTimeout(1800);
+  await page.mouse.move(1050,620);await page.mouse.down({button:'right'});await page.mouse.move(990,600,{steps:8});await page.mouse.up({button:'right'});await page.waitForTimeout(1800);
   await focus('Saturn');await scrollOutToSystem();
   console.log('✓ Zoomed and rotated overview framing restored after a planet visit');
   entryProjection=null;
@@ -123,9 +123,9 @@ try {
   assert.match(await page.locator('.layer-key').textContent(),/Crust.*Mantle.*Liquid outer core.*Solid inner core/);
   await page.getByRole('button',{name:'Solid inner core',exact:true}).click();
   assert.match(await page.locator('.layer-description').textContent(),/1,221 km/);
-  assert.equal(await page.locator('.interior-source').getAttribute('href'),'https://science.nasa.gov/earth/facts/');
+  assert.equal(await page.getByRole('link',{name:'USGS · Earth structure'}).getAttribute('href'),'https://pubs.usgs.gov/gip/interior/');
   const cutFace=await page.locator('canvas').screenshot();
-  await page.mouse.move(800,350);await page.mouse.down();await page.mouse.move(990,420,{steps:12});await page.mouse.up();await page.waitForTimeout(400);
+  await page.mouse.move(800,350);await page.mouse.down({button:'right'});await page.mouse.move(990,420,{steps:12});await page.mouse.up({button:'right'});await page.waitForTimeout(400);
   assert.notDeepEqual(await page.locator('canvas').screenshot(),cutFace,'Cutaway must remain a 3D object that can be inspected by orbiting');
   await page.screenshot({path:'.test-artifacts/interior.png'});
   await page.getByRole('button',{name:'Visit the Moon'}).click();await page.waitForTimeout(1400);
